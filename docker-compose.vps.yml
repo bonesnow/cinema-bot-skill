@@ -1,0 +1,39 @@
+services:
+  cinema-bot:
+    # 保留原 docker-compose.yml 中仅绑定 127.0.0.1:8000 的设置；
+    # Caddy 通过 Docker 内部网络访问 cinema-bot:8000。
+    expose:
+      - "8000"
+
+  duckdns:
+    profiles: ["duckdns"]
+    image: alpine:3.20
+    restart: unless-stopped
+    env_file: .env
+    command: >-
+      /bin/sh -c '
+      while true; do
+        RESULT=$$(wget -qO- "https://www.duckdns.org/update?domains=$${DUCKDNS_SUBDOMAIN}&token=$${DUCKDNS_TOKEN}&ip=");
+        echo "DuckDNS update: $${RESULT}";
+        sleep 300;
+      done'
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      cinema-bot:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

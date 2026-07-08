@@ -1,0 +1,91 @@
+# ==============================================================================
+# 资源网站配置模板
+# 只接入你有权访问且允许自动化检索的网站。
+# 选择一种模式填写：普通 HTML 网站用 html；JavaScript 动态网站用 browser。
+# 所有 __FILL_...__ 都是 🔴【需要你填写】的位置。
+# ==============================================================================
+
+websites:
+  # ---------------------------------------------------------------------------
+  # 模板 A：普通 HTML 网站（优先使用，速度快、资源占用低）
+  # ---------------------------------------------------------------------------
+  - name: "__FILL_HTML_SITE_NAME__"                 # 🔴 网站名称
+    enabled: false                                   # 🔴 填完后改成 true
+    authorized: false                                # 🔴 确认有权自动化访问后改成 true
+    mode: "html"
+
+    allowed_domains:
+      - "__FILL_HTML_SITE_DOMAIN__"                 # 🔴 只写域名，例如 media.example.com
+
+    search:
+      url: "https://__FILL_HTML_SITE_DOMAIN__/search" # 🔴 搜索页面
+      method: "GET"                                 # GET 或 POST
+      query_param: "q"                              # 🔴 搜索关键词参数名
+      extra_params: {}
+
+    selectors:
+      result_item: "__FILL_RESULT_ITEM_CSS__"        # 🔴 每条搜索结果的 CSS 选择器
+      title: "__FILL_TITLE_CSS__"                    # 🔴 标题 CSS 选择器
+      detail_url: "__FILL_DETAIL_LINK_CSS__"         # 🟡 详情页链接；结果页已有夸克链接时可留空
+      detail_url_attribute: "href"
+      quality: "__FILL_QUALITY_CSS_OR_EMPTY__"       # 🟡 画质字段
+      size: "__FILL_SIZE_CSS_OR_EMPTY__"             # 🟡 文件大小字段
+      share_url: "__FILL_SHARE_LINK_CSS_OR_EMPTY__"  # 🟡 结果页上的夸克链接
+      share_url_attribute: "href"
+
+    detail:
+      share_url_selector: "__FILL_DETAIL_SHARE_CSS_OR_EMPTY__" # 🟡 详情页夸克链接
+      share_url_attribute: "href"
+      # 一般无需修改；只会接受 pan.quark.cn/s/ 分享链接。
+      share_url_regex: 'https?://pan\.quark\.cn/s/[A-Za-z0-9_-]+[^\s"''<>]*'
+
+    # 🟡 需要登录时，在 .env 新增同名环境变量并填网站 Cookie。
+    cookie_env: "SITE_HTML_COOKIE"
+    headers: {}
+    timeout_seconds: 20
+    max_results: 10
+    detail_concurrency: 3
+    request_delay_seconds: 0.5
+
+  # ---------------------------------------------------------------------------
+  # 模板 B：JavaScript 动态网站（HTML 模式无法读取结果时使用）
+  # ---------------------------------------------------------------------------
+  - name: "__FILL_BROWSER_SITE_NAME__"              # 🔴 网站名称
+    enabled: false                                   # 🔴 填完后改成 true
+    authorized: false                                # 🔴 确认有权自动化访问后改成 true
+    mode: "browser"
+
+    allowed_domains:
+      - "__FILL_BROWSER_SITE_DOMAIN__"              # 🔴 网站域名
+
+    search:
+      # 方式 1：URL 中使用 {query}，机器人会自动替换并打开。
+      url: "https://__FILL_BROWSER_SITE_DOMAIN__/search?keyword={query}"
+      # 方式 2：若网站必须在搜索框操作，URL 填首页，并填写下面两个选择器。
+      input_selector: ""                            # 🟡 搜索输入框 CSS
+      submit_selector: ""                           # 🟡 搜索按钮 CSS
+      result_wait_selector: "__FILL_RESULT_ITEM_CSS__"
+
+    selectors:
+      result_item: "__FILL_RESULT_ITEM_CSS__"        # 🔴 每条结果
+      title: "__FILL_TITLE_CSS__"                    # 🔴 标题
+      detail_url: "__FILL_DETAIL_LINK_CSS__"         # 🟡 详情页链接
+      detail_url_attribute: "href"
+      quality: "__FILL_QUALITY_CSS_OR_EMPTY__"
+      size: "__FILL_SIZE_CSS_OR_EMPTY__"
+      share_url: "__FILL_SHARE_LINK_CSS_OR_EMPTY__"
+      share_url_attribute: "href"
+
+    detail:
+      share_url_selector: "__FILL_DETAIL_SHARE_CSS_OR_EMPTY__"
+      share_url_attribute: "href"
+      share_url_regex: 'https?://pan\.quark\.cn/s/[A-Za-z0-9_-]+[^\s"''<>]*'
+
+    cookie_env: "SITE_BROWSER_COOKIE"               # 🟡 需要登录时填写对应环境变量
+    storage_state_path: "/data/site-auth/browser-site.json"
+    headers: {}
+    timeout_seconds: 30
+    max_results: 10
+    detail_concurrency: 2
+    request_delay_seconds: 1.0
+    browser_headless: true

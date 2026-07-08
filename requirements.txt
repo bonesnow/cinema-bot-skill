@@ -1,0 +1,11 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34,<1
+httpx>=0.28,<1
+wechatpy>=1.8.18,<2
+cryptography>=44,<46
+pytest>=8,<9
+pytest-asyncio>=0.24,<1
+qrcode[pil]>=7.4,<9
+beautifulsoup4>=4.12,<5
+PyYAML>=6,<7
+playwright==1.50.0

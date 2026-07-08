@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+!.env.example
+.venv
+__pycache__
+.pytest_cache
+tests
+*.zip
+data
+*.zip.sha256
+.DS_Store
+outputs
+dist
+build

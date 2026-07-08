@@ -1,0 +1,18 @@
+services:
+  cinema-bot:
+    build: .
+    restart: unless-stopped
+    # Playwright Chromium 使用共享内存；纯 HTML 模式也可保留。
+    shm_size: "512mb"
+    env_file: .env
+    ports:
+      # 生产环境建议由防火墙限制为本机访问，公网只通过 HTTPS 反向代理进入。
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

@@ -1,0 +1,7 @@
+This project was designed with reference to:
+DavidBB-L/cinema-manager (MIT License)
+https://github.com/DavidBB-L/cinema-manager
+
+The implementation in this package is independently structured and adds bot
+webhooks, environment-based secret handling, allowlists, an authorized-provider
+contract, direct-link saving, and dry-run operation.

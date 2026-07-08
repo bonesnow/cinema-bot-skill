@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local secrets and deployment state
+.env
+.env.*
+!.env.example
+data/
+*.pem
+*.key
+*.crt
+*.p12
+*.mobileprovision
+
+# Local build and transfer artifacts
+*.zip
+*.zip.sha256
+dist/
+build/
+outputs/
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/

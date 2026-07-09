@@ -10,6 +10,7 @@
 - 夸克扫码登录，登录态保存到 `/data/quark_auth.json`。
 - 先搜索自己的夸克网盘，已有资源时直接回复。
 - 未命中时查询授权资源源：自建 JSON API、本地目录或你本地配置的网站。
+- 可直接在聊天里发送 `配置资源站 https://example.com` 添加网站。
 - 按 4K、REMUX、HDR、音轨、字幕等信息给候选资源评分。
 - 转存成功后自动定位保存文件、刮削元数据并整理到媒体库目录。
 - 支持 Docker Compose、VPS 反向代理和健康检查。
@@ -78,7 +79,21 @@ cd cinema-bot-skill
 
 没有 VPS、没有域名时，就使用这个模式。它不需要飞书回调，也不需要公网 HTTPS。
 
-添加资源站也只需要输入网址：
+添加资源站也只需要在问答里发送：
+
+```text
+配置资源站 https://你的资源站.example
+```
+
+常用管理命令：
+
+```text
+资源站列表
+删除资源站 https://你的资源站.example
+清空资源站
+```
+
+也可以用脚本一次性写入多个网址：
 
 ```bash
 ./scripts/configure_sources.sh https://你的资源站.example
@@ -173,6 +188,8 @@ https://你的域名/webhooks/feishu
 
 ```text
 状态
+配置资源站 https://你的资源站.example
+资源站列表
 夸克登录
 我要看 星际穿越
 ```
@@ -200,6 +217,7 @@ docker compose restart cinema-bot
 
 公开仓库不会保存真实资源站配置。你可以在自己的 VPS 上选择一种或多种方式：
 
+- `配置资源站 https://资源站`：推荐，直接在飞书、本地问答或其他聊天入口发送。
 - `PROVIDER_API_URLS`：你维护或有权使用的 JSON 搜索 API。
 - `LOCAL_CATALOG_PATH`：本地 JSON 目录，适合小规模自用。
 - `./scripts/configure_sources.sh https://资源站`：只输入网址，使用通用启发式适配器。

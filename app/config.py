@@ -4,6 +4,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from .source_sites import discover_website_config_path
+
 
 _PLACEHOLDER_MARKERS = (
     "__FILL_",
@@ -117,7 +119,7 @@ class Settings:
             houtupan_cookie=_text("HOUTUPAN_COOKIE"),
             houtupan_timeout=max(5, min(_int("HOUTUPAN_TIMEOUT", 30), 90)),
             local_catalog_path=_text("LOCAL_CATALOG_PATH"),
-            website_config_path=_text("WEBSITE_CONFIG_PATH"),
+            website_config_path=discover_website_config_path(_text("WEBSITE_CONFIG_PATH")),
             website_allow_private_hosts=_bool("WEBSITE_ALLOW_PRIVATE_HOSTS", False),
             auto_save=_bool("AUTO_SAVE", True),
             dry_run=_bool("DRY_RUN", True),

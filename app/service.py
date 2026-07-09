@@ -21,6 +21,7 @@ from .providers import (
 from .quark import QuarkClient, QuarkFileItem
 from .quark_auth import QuarkAuthStore, QuarkLoginSession, QuarkLoginStatus, QuarkQRLoginManager
 from .scoring import score_resource
+from .source_sites import SourceSiteUpdate, WebsiteSourceStore, writable_website_config_path
 
 QUARK_URL_RE = re.compile(r"https?://pan\.quark\.cn/s/[A-Za-z0-9_-]+[^\s]*")
 PASSCODE_RE = re.compile(r"(?:提取码|密码|passcode)\s*[:：]?\s*([A-Za-z0-9]{2,12})", re.I)
@@ -31,6 +32,10 @@ QUARK_LOGIN_COMMANDS = {
 ORGANIZE_ALL_COMMANDS = {"整理网盘", "整理媒体库", "整理夸克网盘", "/organize-all", "/organize_all"}
 ORGANIZE_RE = re.compile(r"^(?:整理|归档)\s*[:：]?\s*(.+)$", re.I)
 SCRAPE_RE = re.compile(r"^(?:刮削|识别信息|查询信息)\s*[:：]?\s*(.+)$", re.I)
+SOURCE_ADD_RE = re.compile(r"^(?:配置|添加|新增|加入)(?:资源站|资源网站|网站)\s*[:：]?\s*(.+)$", re.I)
+SOURCE_REMOVE_RE = re.compile(r"^(?:删除|移除)(?:资源站|资源网站|网站)\s*[:：]?\s*(.+)$", re.I)
+SOURCE_LIST_COMMANDS = {"资源站列表", "资源网站列表", "网站列表", "查看资源站", "查看资源网站"}
+SOURCE_CLEAR_COMMANDS = {"清空资源站", "清空资源网站", "清空网站"}
 
 QUARK_LOGOUT_COMMANDS = {
     "退出夸克", "夸克退出", "清除夸克登录", "重新登录夸克",
@@ -69,6 +74,16 @@ def parse_intent(text: str) -> ParsedIntent:
         return ParsedIntent("quark_logout")
     if cleaned.lower() in ORGANIZE_ALL_COMMANDS:
         return ParsedIntent("organize_all")
+    source_add_match = SOURCE_ADD_RE.match(cleaned)
+    if source_add_match:
+        return ParsedIntent("source_add", query=source_add_match.group(1).strip(" ，。"))
+    source_remove_match = SOURCE_REMOVE_RE.match(cleaned)
+    if source_remove_match:
+        return ParsedIntent("source_remove", query=source_remove_match.group(1).strip(" ，。"))
+    if cleaned in SOURCE_LIST_COMMANDS:
+        return ParsedIntent("source_list")
+    if cleaned in SOURCE_CLEAR_COMMANDS:
+        return ParsedIntent("source_clear")
     organize_match = ORGANIZE_RE.match(cleaned)
     if organize_match:
         return ParsedIntent("organize", query=organize_match.group(1).strip(" ，。"))
@@ -186,12 +201,9 @@ class MediaService:
         if settings.local_catalog_path:
             self.providers.append(LocalCatalogProvider(settings.local_catalog_path))
         self.website_report = None
+        self._website_providers: list[ResourceProvider] = []
         if settings.website_config_path:
-            website_providers, self.website_report = load_website_providers(
-                settings.website_config_path,
-                allow_private_hosts=settings.website_allow_private_hosts,
-            )
-            self.providers.extend(website_providers)
+            self._replace_website_providers(settings.website_config_path)
         self.quark_auth = QuarkAuthStore(
             settings.quark_auth_file,
             fallback_cookie=settings.quark_cookie,
@@ -232,6 +244,14 @@ class MediaService:
         if intent.action == "quark_logout":
             self.quark_auth.clear()
             return "✅ 已清除夸克扫码登录信息，请发送“夸克登录”重新扫码。"
+        if intent.action == "source_add":
+            return self._add_source_sites(intent.query)
+        if intent.action == "source_list":
+            return self._list_source_sites()
+        if intent.action == "source_remove":
+            return self._remove_source_sites(intent.query)
+        if intent.action == "source_clear":
+            return self._clear_source_sites()
         if intent.action == "save":
             return await self._save_direct(intent.share_url, intent.passcode)
         if intent.action == "organize":
@@ -255,7 +275,9 @@ class MediaService:
             "6. 整理 星际穿越（整理已有文件）\n"
             "7. 整理网盘（整理转存目标目录的顶层项目）\n"
             "8. 刮削 星际穿越（查看分类元数据）\n"
-            "9. 状态\n\n"
+            "9. 配置资源站 https://example.com\n"
+            "10. 资源站列表 / 删除资源站 https://example.com / 清空资源站\n"
+            "11. 状态\n\n"
             "处理顺序：先查你的夸克网盘；没有才查询已配置的 PanHub/JPMOM/HouTuPan/资源网站/API/本地目录；"
             "多个结果自动选择画质评分最高的版本。转存成功后会自动整理为 Plex/Jellyfin/Infuse 兼容目录。"
         )
@@ -283,6 +305,76 @@ class MediaService:
             f"{'（固定 FID：' + self.settings.library_root_fid + '）' if self.settings.library_root_fid else '（自动创建）'}\n"
             f"类型刮削：{'OMDb' if self.settings.omdb_api_key else '未配置 OMDb，降级为其他'}"
         )
+
+    def _website_store(self) -> WebsiteSourceStore:
+        return WebsiteSourceStore(writable_website_config_path(self.settings.website_config_path))
+
+    def _replace_website_providers(self, path: str) -> None:
+        self.providers = [
+            provider for provider in self.providers if provider not in self._website_providers
+        ]
+        website_providers, self.website_report = load_website_providers(
+            path,
+            allow_private_hosts=self.settings.website_allow_private_hosts,
+        )
+        self._website_providers = website_providers
+        self.providers.extend(website_providers)
+
+    def _reload_source_sites(self, store: WebsiteSourceStore) -> None:
+        self._replace_website_providers(store.path)
+
+    def _add_source_sites(self, text: str) -> str:
+        store = self._website_store()
+        update = store.add_from_text(text)
+        if update.added:
+            self._reload_source_sites(store)
+        return self._format_source_update(update, "添加")
+
+    def _list_source_sites(self) -> str:
+        store = self._website_store()
+        sites = store.list_sites()
+        if not sites:
+            return "尚未配置对话添加的资源站。发送：配置资源站 https://example.com"
+        lines = [f"已配置资源站（{len(sites)} 个）："]
+        lines.extend(f"- {site.name}：{site.url}" for site in sites)
+        lines.append(f"配置文件：{store.path}")
+        return "\n".join(lines)
+
+    def _remove_source_sites(self, text: str) -> str:
+        store = self._website_store()
+        update = store.remove_from_text(text)
+        if update.removed:
+            self._reload_source_sites(store)
+        return self._format_source_update(update, "删除")
+
+    def _clear_source_sites(self) -> str:
+        store = self._website_store()
+        update = store.clear()
+        if update.removed:
+            self._reload_source_sites(store)
+        if not update.removed:
+            return "对话添加的资源站已经是空的。"
+        return f"✅ 已清空 {len(update.removed)} 个对话添加的资源站。"
+
+    def _format_source_update(self, update: SourceSiteUpdate, action: str) -> str:
+        lines: list[str] = []
+        if update.added:
+            lines.append(f"✅ 已添加资源站：{', '.join(site.name for site in update.added)}")
+        if update.removed:
+            lines.append(f"✅ 已删除资源站：{', '.join(site.name for site in update.removed)}")
+        if update.existing:
+            lines.append(f"ℹ️ 已存在：{', '.join(site.name for site in update.existing)}")
+        if update.errors:
+            lines.append("⚠️ 未处理：")
+            lines.extend(f"- {error}" for error in update.errors)
+        if not lines:
+            lines.append(f"没有可{action}的资源站。")
+        if update.added:
+            lines.append(f"配置文件：{update.path}")
+            if update.env_updated:
+                lines.append("已同步 .env：WEBSITE_CONFIG_PATH")
+            lines.append("之后可以直接发送：我要看 星际穿越")
+        return "\n".join(lines)
 
     def _quark_authenticated(self) -> bool:
         value = getattr(self.quark, "is_authenticated", None)

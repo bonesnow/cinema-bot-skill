@@ -3,6 +3,7 @@ from dataclasses import replace
 
 from app.config import Settings
 from app.models import ResourceResult
+from app.providers.website_config import load_website_configs
 from app.providers.base import ResourceProvider
 from app.quark import QuarkFileItem, QuarkSaveResult, QuarkSearchResult
 from app.service import MediaService, title_only_query
@@ -132,3 +133,48 @@ def test_drive_miss_searches_provider_and_saves_highest_quality():
     assert "2160p REMUX HDR Atmos" in reply
     assert "共找到 2 个候选" in reply
     assert "已提交夸克转存任务" in reply
+
+
+def test_dialog_adds_source_site_and_reloads_provider(tmp_path):
+    config_path = tmp_path / "websites.yaml"
+    service = MediaService(
+        replace(
+            make_settings(),
+            provider_api_urls=(),
+            website_config_path=str(config_path),
+        )
+    )
+
+    reply = asyncio.run(service.handle("配置资源站 https://media.example"))
+
+    assert "已添加资源站" in reply
+    report = load_website_configs(str(config_path))
+    assert report.errors == ()
+    assert [source.name for source in report.sources] == ["media.example"]
+    assert any(provider.name == "site:media.example" for provider in service.providers)
+
+
+def test_dialog_lists_and_removes_source_sites(tmp_path):
+    config_path = tmp_path / "websites.yaml"
+    service = MediaService(
+        replace(
+            make_settings(),
+            provider_api_urls=(),
+            website_config_path=str(config_path),
+        )
+    )
+
+    asyncio.run(service.handle("配置资源站 https://a.example https://b.example"))
+    listing = asyncio.run(service.handle("资源站列表"))
+    assert "a.example" in listing
+    assert "b.example" in listing
+
+    removed = asyncio.run(service.handle("删除资源站 a.example"))
+    assert "已删除资源站" in removed
+    listing = asyncio.run(service.handle("资源站列表"))
+    assert "a.example" not in listing
+    assert "b.example" in listing
+
+    cleared = asyncio.run(service.handle("清空资源站"))
+    assert "已清空" in cleared
+    assert "尚未配置" in asyncio.run(service.handle("资源站列表"))

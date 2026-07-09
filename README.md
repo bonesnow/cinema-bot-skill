@@ -50,7 +50,55 @@
 
 手动 `刮削`、`整理`、`整理网盘` 只用于维护或补救，不是日常主流程。
 
-## 快速开始
+## 部署方式怎么选
+
+优先按你的条件选一条路：
+
+| 你的条件 | 推荐入口 | 适合什么 |
+|---|---|---|
+| 没有 VPS，也没有域名 | `./scripts/local_qa.sh` | 直接在电脑终端问答，不接飞书 |
+| 没有 VPS，但想在本机跑服务 | `./scripts/deploy_local.sh` | 本机调试 API；需要公网 HTTPS 才能接飞书 |
+| 有 VPS | `./scripts/deploy_vps.sh` | Docker 一键部署；有域名时自动带 Caddy |
+
+最简单的本地问答：
+
+```bash
+git clone https://github.com/bonesnow/cinema-bot-skill.git
+cd cinema-bot-skill
+./scripts/local_qa.sh
+```
+
+脚本会自动：
+
+- 创建 `.env`
+- 创建 `data/catalog.json`
+- 创建 Python 虚拟环境
+- 安装依赖
+- 进入本地问答模式
+
+没有 VPS、没有域名时，就使用这个模式。它不需要飞书回调，也不需要公网 HTTPS。
+
+本地服务模式：
+
+```bash
+./scripts/deploy_local.sh
+```
+
+启动后访问：
+
+```text
+http://127.0.0.1:8000/healthz
+```
+
+VPS 模式：
+
+```bash
+./scripts/deploy_vps.sh
+```
+
+如果 `.env` 中填写了 `PUBLIC_HOST`，脚本会使用 Docker Compose + Caddy 启动 HTTPS 反向代理；否则只启动绑定到 `127.0.0.1:8000` 的应用服务。
+
+## 手动配置
 
 ```bash
 cp .env.example .env
@@ -84,7 +132,7 @@ mkdir -p data
 cp catalog.example.json data/catalog.json
 ```
 
-启动：
+手动启动：
 
 ```bash
 docker compose up -d --build cinema-bot
@@ -160,6 +208,15 @@ docker compose restart cinema-bot
 ## 常用命令
 
 ```bash
+# 没有 VPS/域名：本地问答
+./scripts/local_qa.sh
+
+# 本机运行服务
+./scripts/deploy_local.sh
+
+# VPS 一键部署
+./scripts/deploy_vps.sh
+
 # 配置检查，不会打印密钥
 docker compose run --rm cinema-bot python -m app.config_check
 
@@ -181,6 +238,7 @@ python -m pytest
 - [自定义网站接入](docs/03_资源网站接入步骤.md)
 - [反向代理](docs/05_反向代理示例.md)
 - [VPS 部署](docs/07_VPS无域名部署.md)
+- [部署方式](docs/12_部署方式.md)
 - [媒体库整理和分类刮削](docs/11_媒体库整理和分类刮削.md)
 - [安全说明](SECURITY.md)
 

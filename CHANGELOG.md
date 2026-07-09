@@ -2,6 +2,9 @@
 
 ## 6.0.0 - 2026-07-08
 
+- 新增三种部署入口：本地问答、本机服务、VPS 一键部署。
+- 新增 `scripts/local_qa.sh`、`scripts/deploy_local.sh`、`scripts/deploy_vps.sh` 和 `scripts/setup_local_env.sh`。
+- `python -m app.cli` 无参数时进入本地问答模式，适合没有 VPS 和域名的用户。
 - 补回原始 cinema-manager 的媒体库整理链路。
 - 夸克转存后轮询任务并提取 `save_as_top_fids`。
 - 新增夸克目录列举、创建目录、重命名和移动操作。

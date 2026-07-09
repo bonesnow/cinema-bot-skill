@@ -67,7 +67,17 @@ PUBLIC_HOST=cinema-demo.duckdns.org
 
 ---
 
-## 四、检查 VPS 配置
+## 四、一键部署
+
+推荐直接执行：
+
+```bash
+./scripts/deploy_vps.sh
+```
+
+脚本会检查 Docker、读取 `.env`、构建镜像、启动服务，并输出健康检查地址和飞书回调地址。
+
+## 五、手动检查 VPS 配置
 
 ```bash
 chmod +x scripts/vps_check.sh
@@ -83,7 +93,7 @@ chmod +x scripts/vps_check.sh
 
 ---
 
-## 五、开放 VPS 防火墙
+## 六、开放 VPS 防火墙
 
 Ubuntu/UFW：
 
@@ -106,7 +116,7 @@ UDP 443（可选）
 
 ---
 
-## 六、启动完整服务
+## 七、手动启动完整服务
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d --build
@@ -134,7 +144,7 @@ https://🔴【你的 DuckDNS 地址】/healthz
 
 ---
 
-## 七、填写飞书回调
+## 八、填写飞书回调
 
 飞书开放平台的事件回调地址填写：
 
@@ -150,7 +160,7 @@ https://cinema-demo.duckdns.org/webhooks/feishu
 
 ---
 
-## 八、扫码登录夸克
+## 九、扫码登录夸克
 
 启动完成后，给飞书机器人发送：
 
@@ -162,7 +172,7 @@ https://cinema-demo.duckdns.org/webhooks/feishu
 
 ---
 
-## 九、常见问题
+## 十、常见问题
 
 ### HTTPS 证书申请失败
 

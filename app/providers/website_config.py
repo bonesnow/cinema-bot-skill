@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import ipaddress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -103,8 +104,29 @@ class WebsiteSourceConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class SimpleSiteSourceConfig:
+    name: str
+    enabled: bool
+    authorized: bool
+    url: str
+    search_templates: tuple[str, ...]
+    article_url_patterns: tuple[str, ...]
+    cookie_env: str = ""
+    timeout_seconds: int = 30
+    max_results: int = 12
+    detail_concurrency: int = 3
+    request_delay_seconds: float = 0.35
+    browser_fallback: bool = True
+
+    def cookie_value(self) -> str:
+        if not self.cookie_env:
+            return ""
+        return os.getenv(self.cookie_env, "").strip()
+
+
+@dataclass(frozen=True, slots=True)
 class WebsiteConfigReport:
-    sources: tuple[WebsiteSourceConfig, ...]
+    sources: tuple[WebsiteSourceConfig | SimpleSiteSourceConfig, ...]
     errors: tuple[str, ...]
     warnings: tuple[str, ...]
 
@@ -118,6 +140,29 @@ def _domain(value: str) -> str:
     if "://" in cleaned:
         cleaned = (urlparse(cleaned).hostname or "").lower()
     return cleaned
+
+
+def _site_url(value: str) -> str:
+    text = _clean(value)
+    if text and "://" not in text:
+        text = f"https://{text}"
+    return text.rstrip("/")
+
+
+def _site_name(url: str, fallback: str) -> str:
+    host = (urlparse(url).hostname or "").lower()
+    return host or fallback
+
+
+def _is_obvious_private_host(hostname: str) -> bool:
+    host = (hostname or "").lower().strip(".")
+    if host in {"localhost", "local"} or host.endswith(".local"):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return not ip.is_global
 
 
 def _as_string_dict(value: Any) -> dict[str, str]:
@@ -147,8 +192,11 @@ def load_website_configs(path: str) -> WebsiteConfigReport:
     entries = raw.get("websites", []) if isinstance(raw, dict) else []
     if not isinstance(entries, list):
         return WebsiteConfigReport((), ("websites 必须是数组",), ())
+    simple_entries = raw.get("simple_sites", []) if isinstance(raw, dict) else []
+    if not isinstance(simple_entries, list):
+        return WebsiteConfigReport((), ("simple_sites 必须是数组",), ())
 
-    sources: list[WebsiteSourceConfig] = []
+    sources: list[WebsiteSourceConfig | SimpleSiteSourceConfig] = []
     errors: list[str] = []
     warnings: list[str] = []
 
@@ -265,6 +313,66 @@ def load_website_configs(path: str) -> WebsiteConfigReport:
             browser_headless=_bool(item.get("browser_headless"), True),
         )
         sources.append(source)
+
+    for index, item in enumerate(simple_entries, start=1):
+        if not isinstance(item, dict):
+            errors.append(f"第 {index} 个简化网站配置必须是对象")
+            continue
+        if not _bool(item.get("enabled"), False):
+            continue
+        url = _site_url(item.get("url"))
+        name = _clean(item.get("name")) or _site_name(url, f"simple-site-{index}")
+        prefix = f"简化网站 {name}"
+        if not _bool(item.get("authorized"), False):
+            errors.append(f"{prefix}：authorized 必须明确设置为 true")
+            continue
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            errors.append(f"{prefix}：url 必须是有效网址")
+            continue
+        if _is_obvious_private_host(parsed.hostname):
+            errors.append(f"{prefix}：url 不能是本机、局域网或私有 IP")
+            continue
+        cookie_env = _clean(item.get("cookie_env"))
+        if cookie_env and not cookie_env.replace("_", "").isalnum():
+            errors.append(f"{prefix}：cookie_env 只能填写环境变量名")
+            continue
+        templates_raw = item.get("search_templates")
+        templates = tuple(
+            _clean(value) for value in templates_raw if _clean(value)
+        ) if isinstance(templates_raw, list) else ()
+        if not templates:
+            templates = (
+                "?s={query}",
+                "search?keyword={query}",
+                "search?q={query}",
+                "search/{query}",
+            )
+        patterns_raw = item.get("article_url_patterns")
+        patterns = tuple(
+            _clean(value) for value in patterns_raw if _clean(value)
+        ) if isinstance(patterns_raw, list) else ()
+        if not patterns:
+            patterns = (
+                r"/\d+\.html(?:$|[?#])",
+                r"/(?:post|article|detail|resource|movie|tv)/",
+            )
+        sources.append(
+            SimpleSiteSourceConfig(
+                name=name,
+                enabled=True,
+                authorized=True,
+                url=url,
+                search_templates=templates,
+                article_url_patterns=patterns,
+                cookie_env=cookie_env,
+                timeout_seconds=_int(item.get("timeout_seconds"), 30, 5, 90),
+                max_results=_int(item.get("max_results"), 12, 1, 50),
+                detail_concurrency=_int(item.get("detail_concurrency"), 3, 1, 10),
+                request_delay_seconds=_float(item.get("request_delay_seconds"), 0.35, 0.0, 10.0),
+                browser_fallback=_bool(item.get("browser_fallback"), True),
+            )
+        )
 
     if path and not sources and not errors:
         warnings.append("网站配置文件中没有启用的网站")

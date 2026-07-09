@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.providers.website_config import load_website_configs
+from app.providers.website_loader import load_website_providers
 
 
 def test_load_valid_html_website_config(tmp_path: Path):
@@ -79,3 +80,55 @@ websites:
     report = load_website_configs(str(config_file))
     assert not report.sources
     assert any("allowed_domains" in error for error in report.errors)
+
+
+def test_simple_site_only_requires_authorized_url(tmp_path: Path):
+    config_file = tmp_path / "websites.yaml"
+    config_file.write_text(
+        """
+simple_sites:
+  - url: https://media.example
+    enabled: true
+    authorized: true
+""",
+        encoding="utf-8",
+    )
+    report = load_website_configs(str(config_file))
+    assert report.errors == ()
+    assert len(report.sources) == 1
+    source = report.sources[0]
+    assert source.name == "media.example"
+    assert source.url == "https://media.example"
+
+
+def test_simple_site_becomes_heuristic_provider(tmp_path: Path):
+    config_file = tmp_path / "websites.yaml"
+    config_file.write_text(
+        """
+simple_sites:
+  - url: media.example
+    enabled: true
+    authorized: true
+""",
+        encoding="utf-8",
+    )
+    providers, report = load_website_providers(str(config_file))
+    assert report.errors == ()
+    assert len(providers) == 1
+    assert providers[0].name == "site:media.example"
+
+
+def test_simple_site_rejects_private_host(tmp_path: Path):
+    config_file = tmp_path / "websites.yaml"
+    config_file.write_text(
+        """
+simple_sites:
+  - url: http://127.0.0.1:8080
+    enabled: true
+    authorized: true
+""",
+        encoding="utf-8",
+    )
+    report = load_website_configs(str(config_file))
+    assert not report.sources
+    assert any("私有 IP" in error for error in report.errors)

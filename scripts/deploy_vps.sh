@@ -53,6 +53,9 @@ case "$current_metadata" in ""|data/*) set_env METADATA_CACHE_PATH /data/metadat
 current_catalog="$(grep -E '^LOCAL_CATALOG_PATH=' .env | tail -1 | cut -d= -f2- || true)"
 case "$current_catalog" in data/catalog.json) set_env LOCAL_CATALOG_PATH /data/catalog.json ;; esac
 
+current_websites="$(grep -E '^WEBSITE_CONFIG_PATH=' .env | tail -1 | cut -d= -f2- || true)"
+case "$current_websites" in data/websites.yaml) set_env WEBSITE_CONFIG_PATH /data/websites.yaml ;; esac
+
 set -a
 # shellcheck disable=SC1091
 . ./.env

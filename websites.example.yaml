@@ -1,9 +1,21 @@
 # ==============================================================================
 # 资源网站配置模板
 # 只接入你有权访问且允许自动化检索的网站。
-# 选择一种模式填写：普通 HTML 网站用 html；JavaScript 动态网站用 browser。
-# 所有 __FILL_...__ 都是 🔴【需要你填写】的位置。
+# 推荐先用 simple_sites：只填网址，不需要 CSS 选择器。
+# 自动识别失败时，再使用下面的 websites 高级配置。
 # ==============================================================================
+
+simple_sites:
+  - name: "demo-site"
+    enabled: false
+    authorized: false
+    url: "https://media.example.com"
+    # 一般不用改。程序会依次尝试这些搜索路径。
+    search_templates:
+      - "?s={query}"
+      - "search?keyword={query}"
+      - "search?q={query}"
+      - "search/{query}"
 
 websites:
   # ---------------------------------------------------------------------------

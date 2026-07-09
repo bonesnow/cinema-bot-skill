@@ -78,6 +78,14 @@ cd cinema-bot-skill
 
 没有 VPS、没有域名时，就使用这个模式。它不需要飞书回调，也不需要公网 HTTPS。
 
+添加资源站也只需要输入网址：
+
+```bash
+./scripts/configure_sources.sh https://你的资源站.example
+```
+
+脚本会生成 `data/websites.yaml`，并把 `.env` 里的 `WEBSITE_CONFIG_PATH` 配好。只有在自动识别失败时，才需要看高级 CSS 配置。
+
 本地服务模式：
 
 ```bash
@@ -194,6 +202,7 @@ docker compose restart cinema-bot
 
 - `PROVIDER_API_URLS`：你维护或有权使用的 JSON 搜索 API。
 - `LOCAL_CATALOG_PATH`：本地 JSON 目录，适合小规模自用。
+- `./scripts/configure_sources.sh https://资源站`：只输入网址，使用通用启发式适配器。
 - `WEBSITE_CONFIG_PATH=/data/websites.yaml`：你本地填写的网站配置，必须显式设置 `authorized: true`。
 - 可选站点适配器：仅在你有权访问、且站点允许自动化检索时，在 `.env` 中自行填写地址和 Cookie。
 
